@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
+#define word uint16_t
 
 /* Registers */
 
@@ -20,8 +21,8 @@ enum {
       R_COUNT
 };
 
-uint16_t memory[UINT16_MAX];
-uint16_t reg[R_COUNT];
+word memory[UINT16_MAX];
+word reg[R_COUNT];
 
 /* Opcodes */
 enum {
@@ -57,18 +58,18 @@ enum {
 };
 
 /* function prototypes */
-uint16_t check_key();
+word check_key();
 void print_registers();
-void mem_write(uint16_t, uint16_t);
-uint16_t mem_read(uint16_t);
+void mem_write(word, word);
+word mem_read(word);
 void read_image_file(FILE*);
-void update_flags(uint16_t);
+void update_flags(word);
 int read_image(const char*);
-uint16_t swap16(uint16_t);
-uint16_t sign_extend(uint16_t, int);
+word swap16(word);
+word sign_extend(word, int);
 
 
-void update_flags(uint16_t r) {
+void update_flags(word r) {
   if (reg[r] == 0) {
     reg[R_COND] = FL_ZERO;
   } else if (reg[r] >> 15) { // 2s complement negative
@@ -78,7 +79,7 @@ void update_flags(uint16_t r) {
   }
 }
 
-uint16_t sign_extend(uint16_t x, int bit_count) {
+word sign_extend(word x, int bit_count) {
   if ((x >> (bit_count - 1)) & 1) {
     x |= (0xFFFF << bit_count);
   }
@@ -94,11 +95,11 @@ void print_registers() {
   return;
 }
 
-void mem_write(uint16_t address, uint16_t val) {
+void mem_write(word address, word val) {
   memory[address] = val;
 }
 
-uint16_t mem_read(uint16_t address) {
+word mem_read(word address) {
   if (address == MR_KBSR) {
     if (check_key()) {
       memory[MR_KBSR] = (1 << 15);
@@ -111,13 +112,13 @@ uint16_t mem_read(uint16_t address) {
 }
 
 void read_image_file(FILE* file) {
-  uint16_t origin;
+  word origin;
   fread(&origin, sizeof(origin), 1, file);
   origin = swap16(origin);
 
-  uint16_t max_read = UINT16_MAX - origin;
-  uint16_t* p = memory + origin;
-  size_t read = fread(p, sizeof(uint16_t), max_read, file);
+  word max_read = UINT16_MAX - origin;
+  word* p = memory + origin;
+  size_t read = fread(p, sizeof(word), max_read, file);
 
   while (read-- > 0) {
     *p = swap16(*p);
@@ -133,12 +134,12 @@ int read_image(const char* image_path) {
   return 1;
 }
 
-uint16_t swap16(uint16_t x) {
+word swap16(word x) {
   return (x << 8) | (x >> 8);
 }
 
 
-uint16_t check_key() {
+word check_key() {
   fd_set readfds;
   FD_ZERO(&readfds);
   FD_SET(STDIN_FILENO, &readfds);
@@ -162,19 +163,19 @@ int main(int argc, const char* argv[]){
   int running = 1;
   while (running) {
     /* Fetch operation */
-    uint16_t instr = mem_read(reg[R_PC]++);
-    uint16_t op = instr >> 12;
+    word instr = mem_read(reg[R_PC]++);
+    word op = instr >> 12;
     switch (op) {
     case OP_ADD:
       {
-        uint16_t r0 = (instr >> 9) & 0x7;
-        uint16_t r1 = (instr >> 6) & 0x7;
-        uint16_t imm_flag = (instr >> 5) & 0x1;
+        word r0 = (instr >> 9) & 0x7;
+        word r1 = (instr >> 6) & 0x7;
+        word imm_flag = (instr >> 5) & 0x1;
         if (imm_flag) {
-          uint16_t imm5 = sign_extend(instr & 0x1F, 5);
+          word imm5 = sign_extend(instr & 0x1F, 5);
           reg[r0] = reg[r1] + imm5;
         } else {
-          uint16_t r2 = instr & 0x7;
+          word r2 = instr & 0x7;
           reg[r0] = reg[r1] + reg[r2];
         }
         update_flags(r0);
@@ -183,15 +184,15 @@ int main(int argc, const char* argv[]){
       break;
     case OP_AND:
       {
-        uint16_t r0 = (instr >> 9) & 0x7;
-        uint16_t r1 = (instr >> 6) & 0x7;
-        uint16_t imm_flag = (instr >> 5) & 0x1;
+        word r0 = (instr >> 9) & 0x7;
+        word r1 = (instr >> 6) & 0x7;
+        word imm_flag = (instr >> 5) & 0x1;
         if (imm_flag) {
-          uint16_t imm5 = sign_extend(instr & 0x1F, 5);
+          word imm5 = sign_extend(instr & 0x1F, 5);
           reg[r0] = reg[r1] & imm5;
           printf("reg at %d is %x", r0, reg[r0]);
         } else {
-          uint16_t r2 = instr & 0x7;
+          word r2 = instr & 0x7;
           reg[r0] = reg[r1] & reg[r2];
         }
         update_flags(r0);
