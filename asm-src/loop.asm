@@ -1,0 +1,8 @@
+.ORIG x3000
+AND R0, R0, 0
+; LOOP
+; ADD R0, R0, 1
+; ADD R1, R0, -10
+; BRn LOOP
+HALT
+.END

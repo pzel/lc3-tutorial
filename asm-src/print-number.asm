@@ -1,0 +1,11 @@
+.ORIG x3000
+AND R0, R0, #0
+ADD R0, R0, #10
+ADD R0, R0, #10
+ADD R0, R0, #10
+ADD R0, R0, #10
+ADD R0, R0, #8
+; R0 is now 10#48 == '0'
+OUT
+HALT
+.END
