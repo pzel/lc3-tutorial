@@ -240,11 +240,13 @@ int run_vm(const char* image) {
 int run_tests() {
   test("sign_extend preserves sign"){
     // 00000 == 0000 0000
-    assert(sign_extend(0x0, 5) == (short)(0));
+    assert(sign_extend(0x0, 5) == (word)(0));
 
     // 11111 == 1111 1111 == -1
-    word got = sign_extend(0x1F, 5);
-    assert(got == ((uint16_t)(-1)));
+    assert(sign_extend(0x1F, 5) == ((word)(-1)));
+
+    // 01111 == 0000 1111 == 15
+    assert(sign_extend(0xF, 5) == ((word)(15)));
   }
 
   test("all registers start at zero"){
@@ -278,7 +280,7 @@ int run_tests() {
   test("add instruction with negative immediate value decrements dr"){
     VM* vm = calloc(sizeof(vm), 0);
     //2#0001 000 000 1 11111 == 0x103F
-    //                 imm5 == (-1)
+    //                 imm5 == (-1) in 2's complement in 5 bits
     op_add(vm, OP_ADD, 0x103F);
 
     assert(vm->reg[0] == (word)(-1));
