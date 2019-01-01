@@ -1,3 +1,7 @@
+# binaries
 lc
+unit
+
+# assembly results
 .obj
 .sym

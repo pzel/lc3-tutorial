@@ -1,10 +1,16 @@
-CC = tcc
-.PHONY: build test
+CC ?= tcc
+.PHONY: build clean test unit
 
 lc:
 
-build:
-	find asm-src | grep 'asm$$' | xargs -L1 lc3as
+clean:
+	@rm -rf core*
 
-test: lc
-	./tests.rb
+build:
+	@find asm-src | grep 'asm$$' | xargs -L1 lc3as
+
+test: clean unit lc
+	@./tests.rb
+
+unit: lc.c
+	@$(CC) $< -DTEST -o $@ && ./$@
