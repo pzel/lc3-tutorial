@@ -198,6 +198,14 @@ int main(int argc, const char* argv[]){
         update_flags(r0);
       }
       break;
+    case OP_LD:
+      {
+        word r0 = (instr >> 9) & 0x7;
+        word source = sign_extend(instr & 0x1ff, 9);
+        reg[r0] = mem_read(reg[R_PC] + source);
+        update_flags(r0);
+      }
+      break;
     default:
       printf("got other\n");
       running = 0;

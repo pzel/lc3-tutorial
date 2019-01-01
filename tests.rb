@@ -38,7 +38,7 @@ def assemble code
 end
 
 class OriginalVM
-  # The canonical VM, from
+  # The canonical LC-3 simulator
   # https://github.com/haplesshero13/lc3tools
   def self.run_binary object_path
     script = Tempfile.new(['lc3_script', '.sh'])
@@ -94,5 +94,18 @@ class RegisterStateTests < Minitest::Test
     assert_equal(want[5], "0002")
     assert_equal(want[5], got[5])
   end
+
+  def test_ld
+    code = [".ORIG x3000",
+            "LD R5, LETTER_A",
+            "HALT",
+            "LETTER_A: .FILL 65",
+            ".END"]
+    want = Run.new(OriginalVM, code).registers
+    got = Run.new(MyVM, code).registers
+    assert_equal(want[5], "0041")
+    assert_equal(want[5], got[5])
+  end
+
 
 end
