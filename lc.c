@@ -191,6 +191,7 @@ int op_add(VM* vm, word operands) {
 }
 
 exec_st process_instruction(VM* vm, word instr) {
+  int z = 0;
   exec_st exec_st = RUNNING;
   word op = instr >> 12;
   word payload = instr & 0xFFF;
@@ -198,34 +199,32 @@ exec_st process_instruction(VM* vm, word instr) {
   case OP_ADD:
     op_add(vm, payload);
     break;
-  case OP_AND:
-    {
+  case OP_AND: {
       word r0 = (instr >> 9) & 0x7;
       word r1 = (instr >> 6) & 0x7;
       word imm_flag = (instr >> 5) & 0x1;
       if (imm_flag) {
         word imm5 = sign_extend(instr & 0x1F, 5);
         vm->reg[r0] = vm->reg[r1] & imm5;
-        printf("reg at %d is %x", r0, vm->reg[r0]);
       } else {
         word r2 = instr & 0x7;
         vm->reg[r0] = vm->reg[r1] & vm->reg[r2];
       }
       update_flags(vm, r0);
-    }
-    break;
-  case OP_LD:
-    {
+      break;
+  }
+  case OP_LD: {
       word r0 = (instr >> 9) & 0x7;
       word source = sign_extend(instr & 0x1ff, 9);
       vm->reg[r0] = mem_read(vm, vm->reg[R_PC] + source);
       update_flags(vm, r0);
-    }
-    break;
-  default:
-    printf("got other, stopping\n");
-    exec_st = STOP;
-    break;
+      break;
+  }
+  default:; {
+      printf("got other, stopping\n");
+      exec_st = STOP;
+      break;
+  }
   }
   return exec_st;
 }
@@ -275,7 +274,7 @@ int run_tests() {
     free(vm);
   }
 
-  test("add instruction with immediate value adds to dest. register"){
+  test("ADD with immediate value adds to dest register"){
     VM* vm = calloc(sizeof(vm), 0);
     //2#0001 000 000 1 00001 == 4129 == 0x1021
     //  ADD  dr  sr  f imm5
@@ -285,7 +284,7 @@ int run_tests() {
     free(vm);
   }
 
-  test("add instruction with max immediate value adds to dr"){
+  test("ADD with max immediate value ADDs to dr"){
     VM* vm = calloc(sizeof(vm), 0);
     //2#0001 000 000 1 01111 == 0x102F
     //                 imm5 == 15 == 0xF
@@ -295,7 +294,7 @@ int run_tests() {
     free(vm);
   }
 
-  test("add instruction with negative immediate value decrements dr"){
+  test("ADD with negative immediate value decrements dr"){
     VM* vm = calloc(sizeof(vm), 0);
     //2#0001 000 000 1 11111 == 0x103F
     //                 imm5 == (-1) in 2's complement in 5 bits
@@ -305,10 +304,10 @@ int run_tests() {
     free(vm);
   }
 
-  test("add instruction with other register adds register values"){
+  test("ADD with other register ADDs register values"){
     VM* vm = calloc(sizeof(vm), 0);
-    //2#0001 000 001 0 00 010 == add from reg1 & reg2 into reg0
-    //  add  dr  sr  f zz  tr == 0x1042
+    //2#0001 000 001 0 00 010 == ADD from reg1 & reg2 into reg0
+    //  ADD  dr  sr  f zz  tr == 0x1042
     vm->reg[1] = 1;
     vm->reg[2] = 2;
     process_instruction(vm, 0x1042);
@@ -317,6 +316,28 @@ int run_tests() {
     free(vm);
   }
 
+  test("AND with immediate performs bitwise AND"){
+    VM* vm = calloc(sizeof(vm), 0);
+    //2#0101 000 001 1 01111 == 0x506F
+    //  AND  dr  sr  f imm5
+    vm->reg[1] = 0x9; // 1001
+    process_instruction(vm, 0x506F);
+
+    assert(vm->reg[0] == 0x9);
+    free(vm);
+  }
+
+  test("AND performs bitwise AND in register-addressed mode"){
+    VM* vm = calloc(sizeof(vm), 0);
+    //2#0101 000 001 0 00 010 == AND from reg1 & reg2 into reg0
+    //  AND  dr  sr  f zz  tr == 0x5042
+    vm->reg[1] = 1;
+    vm->reg[2] = 3;
+    process_instruction(vm, 0x5042);
+
+    assert(vm->reg[0] == 1);
+    free(vm);
+  }
 
   printf("ALL UNIT TESTS PASSED.\n\n");
   return 0;

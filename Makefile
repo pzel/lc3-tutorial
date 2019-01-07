@@ -1,4 +1,4 @@
-CC ?= tcc
+CC ?= gcc
 .PHONY: build clean test unit
 
 lc:
