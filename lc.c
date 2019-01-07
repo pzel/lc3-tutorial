@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "binlit.h"
+
 #define word uint16_t
 
 
@@ -276,9 +279,9 @@ int run_tests() {
 
   test("ADD with immediate value adds to dest register"){
     VM* vm = calloc(sizeof(vm), 0);
-    //2#0001 000 000 1 00001 == 4129 == 0x1021
-    //  ADD  dr  sr  f imm5
-    process_instruction(vm, 0x1021);
+    word i = word_from_string("0001 000 000 1 00001");
+                           //   ADD  dr  sr f  imm5
+    process_instruction(vm, i);
 
     assert(vm->reg[0] == 1);
     free(vm);
@@ -286,9 +289,9 @@ int run_tests() {
 
   test("ADD with max immediate value ADDs to dr"){
     VM* vm = calloc(sizeof(vm), 0);
-    //2#0001 000 000 1 01111 == 0x102F
-    //                 imm5 == 15 == 0xF
-    process_instruction(vm, 0x102F);
+    word i = word_from_string("0001 000 000 1 01111");
+                             // ADD           imm5=0xf
+    process_instruction(vm, i);
 
     assert(vm->reg[0] == 0xf);
     free(vm);
@@ -296,9 +299,9 @@ int run_tests() {
 
   test("ADD with negative immediate value decrements dr"){
     VM* vm = calloc(sizeof(vm), 0);
-    //2#0001 000 000 1 11111 == 0x103F
-    //                 imm5 == (-1) in 2's complement in 5 bits
-    process_instruction(vm, 0x103F);
+    word i = word_from_string("0001 000 000 1 11111");
+                             //               (-1) in 2's comp
+    process_instruction(vm, i);
 
     assert(vm->reg[0] == (word)(-1));
     free(vm);
@@ -306,11 +309,11 @@ int run_tests() {
 
   test("ADD with other register ADDs register values"){
     VM* vm = calloc(sizeof(vm), 0);
-    //2#0001 000 001 0 00 010 == ADD from reg1 & reg2 into reg0
-    //  ADD  dr  sr  f zz  tr == 0x1042
+    word i = word_from_string("0001 000 001 0 00 010");
+                            //  ADD  dr  sr  f zz  tr
     vm->reg[1] = 1;
     vm->reg[2] = 2;
-    process_instruction(vm, 0x1042);
+    process_instruction(vm, i);
 
     assert(vm->reg[0] == 3);
     free(vm);
@@ -318,10 +321,10 @@ int run_tests() {
 
   test("AND with immediate performs bitwise AND"){
     VM* vm = calloc(sizeof(vm), 0);
-    //2#0101 000 001 1 01111 == 0x506F
-    //  AND  dr  sr  f imm5
+    word i = word_from_string("0101 000 001 1 01111");
+                            //  AND  dr  sr f  imm5
     vm->reg[1] = 0x9; // 1001
-    process_instruction(vm, 0x506F);
+    process_instruction(vm, i);
 
     assert(vm->reg[0] == 0x9);
     free(vm);
@@ -329,11 +332,11 @@ int run_tests() {
 
   test("AND performs bitwise AND in register-addressed mode"){
     VM* vm = calloc(sizeof(vm), 0);
-    //2#0101 000 001 0 00 010 == AND from reg1 & reg2 into reg0
-    //  AND  dr  sr  f zz  tr == 0x5042
+    word i = word_from_string("0101 000 001 0 00 010");
+                            //  AND  dr  sr f zz  tr
     vm->reg[1] = 1;
     vm->reg[2] = 3;
-    process_instruction(vm, 0x5042);
+    process_instruction(vm, i);
 
     assert(vm->reg[0] == 1);
     free(vm);

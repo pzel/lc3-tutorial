@@ -1,7 +1,7 @@
-CC ?= gcc
+CC := tcc
 .PHONY: build clean test unit
 
-lc:
+lc: lc.c binlit.c
 
 clean:
 	@rm -rf core*
@@ -12,5 +12,5 @@ build:
 test: clean unit lc
 	@./tests.rb
 
-unit: lc.c
-	@$(CC) $< -DTEST -o $@ && ./$@
+unit: lc.c binlit.c
+	@$(CC) $^ -DTEST -o $@ && ./$@
