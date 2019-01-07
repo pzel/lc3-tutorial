@@ -206,6 +206,12 @@ int op_and(VM* vm, word operands) {
   }
   update_flags(vm, r0);
 }
+int op_ld(VM* vm, word operands) {
+  word r0 = (operands >> 9) & 0x7;
+  word source = sign_extend(operands & 0x1ff, 9);
+  vm->reg[r0] = mem_read(vm, vm->reg[R_PC] + source);
+  update_flags(vm, r0);
+}
 
 exec_st process_instruction(VM* vm, word instr) {
   int z = 0;
@@ -215,18 +221,11 @@ exec_st process_instruction(VM* vm, word instr) {
   switch (op) {
   case OP_ADD: op_add(vm, payload); break;
   case OP_AND: op_and(vm, payload); break;
-  case OP_LD: {
-      word r0 = (instr >> 9) & 0x7;
-      word source = sign_extend(instr & 0x1ff, 9);
-      vm->reg[r0] = mem_read(vm, vm->reg[R_PC] + source);
-      update_flags(vm, r0);
-      break;
-  }
-  default:; {
-      printf("got other, stopping\n");
-      exec_st = STOP;
-      break;
-  }
+  case OP_LD: op_ld(vm, payload); break;
+  default:;
+    printf("got other, stopping\n");
+    exec_st = STOP;
+    break;
   }
   return exec_st;
 }
