@@ -66,16 +66,17 @@ enum vm_exec_state {
       STOP = 0,
       RUNNING = 1
 };
-//typedef vm_execution_state 
+typedef enum vm_exec_state exec_st;
 
 /* function prototypes */
+exec_st process_instruction(VM*, word);
 int read_image(VM*, const char*);
 void mem_write(VM*, word, word);
 void print_registers(VM*);
 void read_image_file(VM*, FILE*);
 void update_flags(VM*, word);
 word mem_read(VM*, word);
-
+word fetch_next_instr(VM*);
 word check_key();
 word sign_extend(word, int);
 word swap16(word);
@@ -163,6 +164,10 @@ word check_key() {
   return select(1, &readfds, NULL, NULL, &timeout) != 0;
 }
 
+word fetch_next_instr(VM* vm) {
+  return mem_read(vm, vm->reg[R_PC]++);
+}
+
 int main(int argc, const char* argv[]){
 #ifdef TEST
   return run_tests();
@@ -171,26 +176,27 @@ int main(int argc, const char* argv[]){
 #endif
 }
 
-int op_add(VM* vm, word instr) {
-  word r0 = (instr >> 9) & 0x7;
-  word r1 = (instr >> 6) & 0x7;
-  word imm_flag = (instr >> 5) & 0x1;
+int op_add(VM* vm, word operands) {
+  word r0 = (operands >> 9) & 0x7;
+  word r1 = (operands >> 6) & 0x7;
+  word imm_flag = (operands >> 5) & 0x1;
   if (imm_flag) {
-    word imm5 = sign_extend(instr & 0x1F, 5);
+    word imm5 = sign_extend(operands & 0x1F, 5);
     vm->reg[r0] = vm->reg[r1] + imm5;
   } else {
-    word r2 = instr & 0x7;
+    word r2 = operands & 0x7;
     vm->reg[r0] = vm->reg[r1] + vm->reg[r2];
   }
   update_flags(vm, r0);
 }
 
-enum vm_exec_state process_instruction(VM* vm, word instr) {
-  enum vm_exec_state exec_st = RUNNING;
+exec_st process_instruction(VM* vm, word instr) {
+  exec_st exec_st = RUNNING;
   word op = instr >> 12;
+  word payload = instr & 0xFFF;
   switch (op) {
   case OP_ADD:
-    op_add(vm, instr);
+    op_add(vm, payload);
     break;
   case OP_AND:
     {
@@ -236,9 +242,9 @@ int run_vm(const char* image) {
   enum { PC_START = 0x3000 };
   vm->reg[R_PC] = PC_START;
 
-  enum vm_exec_state exec_st = RUNNING;
+  exec_st exec_st = RUNNING;
   while (exec_st) {
-    word instr = mem_read(vm, vm->reg[R_PC]++);
+    word instr = fetch_next_instr(vm);
     exec_st = process_instruction(vm, instr);
   }
   /* Shutdown (12) */
@@ -272,8 +278,8 @@ int run_tests() {
   test("add instruction with immediate value adds to dest. register"){
     VM* vm = calloc(sizeof(vm), 0);
     //2#0001 000 000 1 00001 == 4129 == 0x1021
-    //  add  dr  sr  f imm5
-    op_add(vm, 0x1021);
+    //  ADD  dr  sr  f imm5
+    process_instruction(vm, 0x1021);
 
     assert(vm->reg[0] == 1);
     free(vm);
@@ -283,7 +289,7 @@ int run_tests() {
     VM* vm = calloc(sizeof(vm), 0);
     //2#0001 000 000 1 01111 == 0x102F
     //                 imm5 == 15 == 0xF
-    op_add(vm, 0x102F);
+    process_instruction(vm, 0x102F);
 
     assert(vm->reg[0] == 0xf);
     free(vm);
@@ -293,20 +299,21 @@ int run_tests() {
     VM* vm = calloc(sizeof(vm), 0);
     //2#0001 000 000 1 11111 == 0x103F
     //                 imm5 == (-1) in 2's complement in 5 bits
-    op_add(vm, 0x103F);
+    process_instruction(vm, 0x103F);
 
     assert(vm->reg[0] == (word)(-1));
     free(vm);
   }
 
-
-  test("add instruction with immediate value adds to dest. register"){
+  test("add instruction with other register adds register values"){
     VM* vm = calloc(sizeof(vm), 0);
-    //2#0001 000 000 1 00001 == 4129 == 0x1021
-    //  add  dr  sr  f imm5
-    op_add(vm, 0x1021);
+    //2#0001 000 001 0 00 010 == add from reg1 & reg2 into reg0
+    //  add  dr  sr  f zz  tr == 0x1042
+    vm->reg[1] = 1;
+    vm->reg[2] = 2;
+    process_instruction(vm, 0x1042);
 
-    assert(vm->reg[0] == 1);
+    assert(vm->reg[0] == 3);
     free(vm);
   }
 
