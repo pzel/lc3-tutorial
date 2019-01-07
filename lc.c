@@ -193,29 +193,28 @@ int op_add(VM* vm, word operands) {
   update_flags(vm, r0);
 }
 
+int op_and(VM* vm, word operands) {
+  word r0 = (operands >> 9) & 0x7;
+  word r1 = (operands >> 6) & 0x7;
+  word imm_flag = (operands >> 5) & 0x1;
+  if (imm_flag) {
+    word imm5 = sign_extend(operands & 0x1F, 5);
+    vm->reg[r0] = vm->reg[r1] & imm5;
+  } else {
+    word r2 = operands & 0x7;
+    vm->reg[r0] = vm->reg[r1] & vm->reg[r2];
+  }
+  update_flags(vm, r0);
+}
+
 exec_st process_instruction(VM* vm, word instr) {
   int z = 0;
   exec_st exec_st = RUNNING;
   word op = instr >> 12;
   word payload = instr & 0xFFF;
   switch (op) {
-  case OP_ADD:
-    op_add(vm, payload);
-    break;
-  case OP_AND: {
-      word r0 = (instr >> 9) & 0x7;
-      word r1 = (instr >> 6) & 0x7;
-      word imm_flag = (instr >> 5) & 0x1;
-      if (imm_flag) {
-        word imm5 = sign_extend(instr & 0x1F, 5);
-        vm->reg[r0] = vm->reg[r1] & imm5;
-      } else {
-        word r2 = instr & 0x7;
-        vm->reg[r0] = vm->reg[r1] & vm->reg[r2];
-      }
-      update_flags(vm, r0);
-      break;
-  }
+  case OP_ADD: op_add(vm, payload); break;
+  case OP_AND: op_and(vm, payload); break;
   case OP_LD: {
       word r0 = (instr >> 9) & 0x7;
       word source = sign_extend(instr & 0x1ff, 9);
