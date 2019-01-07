@@ -179,7 +179,7 @@ int main(int argc, const char* argv[]){
 #endif
 }
 
-int op_add(VM* vm, word operands) {
+void op_add(VM* vm, word operands) {
   word r0 = (operands >> 9) & 0x7;
   word r1 = (operands >> 6) & 0x7;
   word imm_flag = (operands >> 5) & 0x1;
@@ -193,7 +193,7 @@ int op_add(VM* vm, word operands) {
   update_flags(vm, r0);
 }
 
-int op_and(VM* vm, word operands) {
+void op_and(VM* vm, word operands) {
   word r0 = (operands >> 9) & 0x7;
   word r1 = (operands >> 6) & 0x7;
   word imm_flag = (operands >> 5) & 0x1;
@@ -206,7 +206,7 @@ int op_and(VM* vm, word operands) {
   }
   update_flags(vm, r0);
 }
-int op_ld(VM* vm, word operands) {
+void op_ld(VM* vm, word operands) {
   word r0 = (operands >> 9) & 0x7;
   word source = sign_extend(operands & 0x1ff, 9);
   vm->reg[r0] = mem_read(vm, vm->reg[R_PC] + source);
