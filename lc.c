@@ -61,6 +61,12 @@ typedef struct vm {
   word reg[R_COUNT];
 } VM;
 
+/* VM run state */
+enum vm_exec_state {
+      STOP = 0,
+      RUNNING = 1
+};
+//typedef vm_execution_state 
 
 /* function prototypes */
 int read_image(VM*, const char*);
@@ -179,6 +185,45 @@ int op_add(VM* vm, word instr) {
   update_flags(vm, r0);
 }
 
+enum vm_exec_state process_instruction(VM* vm, word instr) {
+  enum vm_exec_state exec_st = RUNNING;
+  word op = instr >> 12;
+  switch (op) {
+  case OP_ADD:
+    op_add(vm, instr);
+    break;
+  case OP_AND:
+    {
+      word r0 = (instr >> 9) & 0x7;
+      word r1 = (instr >> 6) & 0x7;
+      word imm_flag = (instr >> 5) & 0x1;
+      if (imm_flag) {
+        word imm5 = sign_extend(instr & 0x1F, 5);
+        vm->reg[r0] = vm->reg[r1] & imm5;
+        printf("reg at %d is %x", r0, vm->reg[r0]);
+      } else {
+        word r2 = instr & 0x7;
+        vm->reg[r0] = vm->reg[r1] & vm->reg[r2];
+      }
+      update_flags(vm, r0);
+    }
+    break;
+  case OP_LD:
+    {
+      word r0 = (instr >> 9) & 0x7;
+      word source = sign_extend(instr & 0x1ff, 9);
+      vm->reg[r0] = mem_read(vm, vm->reg[R_PC] + source);
+      update_flags(vm, r0);
+    }
+    break;
+  default:
+    printf("got other, stopping\n");
+    exec_st = STOP;
+    break;
+  }
+  return exec_st;
+}
+
 int run_vm(const char* image) {
   VM* vm = malloc(sizeof(vm));
 
@@ -191,46 +236,12 @@ int run_vm(const char* image) {
   enum { PC_START = 0x3000 };
   vm->reg[R_PC] = PC_START;
 
-  int running = 1;
-  while (running) {
-    /* Fetch operation */
+  enum vm_exec_state exec_st = RUNNING;
+  while (exec_st) {
     word instr = mem_read(vm, vm->reg[R_PC]++);
-    word op = instr >> 12;
-    switch (op) {
-    case OP_ADD:
-      op_add(vm, instr);
-      break;
-    case OP_AND:
-      {
-        word r0 = (instr >> 9) & 0x7;
-        word r1 = (instr >> 6) & 0x7;
-        word imm_flag = (instr >> 5) & 0x1;
-        if (imm_flag) {
-          word imm5 = sign_extend(instr & 0x1F, 5);
-          vm->reg[r0] = vm->reg[r1] & imm5;
-          printf("reg at %d is %x", r0, vm->reg[r0]);
-        } else {
-          word r2 = instr & 0x7;
-          vm->reg[r0] = vm->reg[r1] & vm->reg[r2];
-        }
-        update_flags(vm, r0);
-      }
-      break;
-    case OP_LD:
-      {
-        word r0 = (instr >> 9) & 0x7;
-        word source = sign_extend(instr & 0x1ff, 9);
-        vm->reg[r0] = mem_read(vm, vm->reg[R_PC] + source);
-        update_flags(vm, r0);
-      }
-      break;
-    default:
-      printf("got other\n");
-      running = 0;
-      break;
-    }
+    exec_st = process_instruction(vm, instr);
   }
-  // shutdown (12)
+  /* Shutdown (12) */
   print_registers(vm);
   free(vm);
 }
@@ -287,7 +298,6 @@ int run_tests() {
     assert(vm->reg[0] == (word)(-1));
     free(vm);
   }
-
 
 
   test("add instruction with immediate value adds to dest. register"){
