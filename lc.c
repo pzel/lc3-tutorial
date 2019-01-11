@@ -206,6 +206,14 @@ void op_and(VM* vm, word operands) {
   }
   update_flags(vm, r0);
 }
+
+void op_not(VM* vm, word operands) {
+  word r0 = (operands >> 9) & 0x7;
+  word r1 = (operands >> 6) & 0x7;
+  vm->reg[r0] = ~vm->reg[r1];
+  update_flags(vm, r0);
+}
+
 void op_ld(VM* vm, word operands) {
   word r0 = (operands >> 9) & 0x7;
   word source = sign_extend(operands & 0x1ff, 9);
@@ -221,6 +229,7 @@ exec_st process_instruction(VM* vm, word instr) {
   switch (op) {
   case OP_ADD: op_add(vm, payload); break;
   case OP_AND: op_and(vm, payload); break;
+  case OP_NOT: op_not(vm, payload); break;
   case OP_LD: op_ld(vm, payload); break;
   default:;
     printf("got other, stopping\n");
@@ -308,7 +317,7 @@ int run_tests() {
   test("ADD with other register ADDs register values"){
     VM* vm = calloc(sizeof(vm), 0);
     word i = word_from_string("0001 000 001 0 00 010");
-                            //  ADD  dr  sr  f zz  tr
+                            //  ADD  dr  sr f zz  tr
     vm->reg[1] = 1;
     vm->reg[2] = 2;
     process_instruction(vm, i);
@@ -339,6 +348,19 @@ int run_tests() {
     assert(vm->reg[0] == 1);
     free(vm);
   }
+
+
+  test("NOT performs bitwise complement"){
+    VM* vm = calloc(sizeof(vm), 0);
+    word i = word_from_string("1001 000 001 1 11111");
+                            //  NOT  dr  sr 1 11111
+    vm->reg[1] = 0xaaaa;
+    process_instruction(vm, i);
+
+    assert(vm->reg[0] == 0x5555);
+    free(vm);
+  }
+
 
   printf("ALL UNIT TESTS PASSED.\n\n");
   return 0;

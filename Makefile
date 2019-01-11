@@ -1,5 +1,7 @@
 CC := tcc
-.PHONY: build clean test unit
+.PHONY: build clean test unit top
+
+top: test
 
 lc: lc.c binlit.c
 
