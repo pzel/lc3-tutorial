@@ -107,5 +107,29 @@ class RegisterStateTests < Minitest::Test
     assert_equal(want[5], got[5])
   end
 
+  def test_an_implementation_of_xor
+    code = [".ORIG x3000",
+            "AND R1, R1, 0",
+            "AND R2, R2, 0",
+            "ADD R0, R0, 1",
+            "ADD R1, R0, 2",
+            ## R3 <- XOR(R1,R2)
+            "NOT R1,R1",
+            "AND R3,R1,R2",
+            "NOT R1,R1",
+            "NOT R2,R2",
+            "AND R4,R1,R2",
+            "NOT R2,R2",
+            "NOT R3,R3",
+            "NOT R4,R4",
+            "AND R3,R3,R4",
+            "NOT R3,R3",
+            "HALT"]
+    want = Run.new(OriginalVM, code).registers
+    got = Run.new(MyVM, code).registers
+    assert_equal(want[3], "0003")
+    assert_equal(got[3], "0003")
+  end
+
 
 end
