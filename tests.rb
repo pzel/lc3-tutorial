@@ -131,5 +131,31 @@ class RegisterStateTests < Minitest::Test
     assert_equal(got[3], "0003")
   end
 
+  def test_an_implementation_of_bitcount
+    code = [
+            "        .ORIG   x3000",
+            "        AND     R1,R1,#0",
+            "        ADD     R1,R1,#3",
+            "pop     AND     R5,R5,#0",
+            "        ADD     R1,R1,#0", #test the msb
+            "        BRzp    skipf",
+            "        ADD     R5,R5,#1",
+            "skipf   AND     R2,R2,#0",
+            "        ADD     R2,R2,#15",
+            "loop    ADD     R1,R1,R1",  #now test the other 15
+            "        BRzp    skip",
+            "        ADD     R5,R5,#1",
+            "skip    ADD     R2,R2,#-1",
+            "        BRp     loop",
+            "        HALT",
+            "        .END"
+           ]
+    want = Run.new(OriginalVM, code).registers
+    got = Run.new(MyVM, code).registers
+    assert_equal(want[5], "0002")
+    assert_equal(got[5], "0002")
+  end
+
+
 
 end

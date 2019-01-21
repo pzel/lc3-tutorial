@@ -83,10 +83,15 @@ word fetch_next_instr(VM*);
 word check_key();
 word sign_extend(word, int);
 word swap16(word);
-
 int run_vm(const char*);
 int run_tests();
+VM* reset_vm(VM*);
 
+VM* reset_vm(VM* vm) {
+  for (int i = 0; i<R_COUNT; i++) { vm->reg[i] = 0; }
+//  for (word w = 0; w<UINT16_MAX; w++) { vm->memory[w] = 0; }
+  return vm;
+}
 
 void update_flags(VM* vm, word r) {
   if (vm->reg[r] == 0) {
@@ -179,6 +184,13 @@ int main(int argc, const char* argv[]){
 #endif
 }
 
+void op_br(VM* vm, word operands) {
+  word pcoffset9 = sign_extend(operands & 0x1ff, 9);
+  if ((operands >> 9) & vm->reg[R_COND]) {
+    vm->reg[R_PC] = vm->reg[R_PC] + pcoffset9;
+  }
+}
+
 void op_add(VM* vm, word operands) {
   word r0 = (operands >> 9) & 0x7;
   word r1 = (operands >> 6) & 0x7;
@@ -227,6 +239,7 @@ exec_st process_instruction(VM* vm, word instr) {
   word op = instr >> 12;
   word payload = instr & 0xFFF;
   switch (op) {
+  case OP_BR: op_br(vm, payload); break;
   case OP_ADD: op_add(vm, payload); break;
   case OP_AND: op_and(vm, payload); break;
   case OP_NOT: op_not(vm, payload); break;
@@ -240,7 +253,7 @@ exec_st process_instruction(VM* vm, word instr) {
 }
 
 int run_vm(const char* image) {
-  VM* vm = malloc(sizeof(vm));
+  VM* vm = reset_vm(malloc(sizeof(vm)));
 
   if(!read_image(vm, image)) {
     printf("could not load image\n");
@@ -277,7 +290,7 @@ int run_tests() {
   }
 
   test("all registers start at zero"){
-    VM* vm = calloc(sizeof(vm), 0);
+    VM* vm = reset_vm(malloc(sizeof(vm)));
     for(int i = 0; i<R_COUNT; i++) {
       assert(vm->reg[i] == 0);
     }
@@ -285,7 +298,7 @@ int run_tests() {
   }
 
   test("ADD with immediate value adds to dest register"){
-    VM* vm = calloc(sizeof(vm), 0);
+    VM* vm = reset_vm(malloc(sizeof(vm)));
     word i = word_from_string("0001 000 000 1 00001");
                            //   ADD  dr  sr f  imm5
     process_instruction(vm, i);
@@ -295,7 +308,7 @@ int run_tests() {
   }
 
   test("ADD with max immediate value ADDs to dr"){
-    VM* vm = calloc(sizeof(vm), 0);
+    VM* vm = reset_vm(malloc(sizeof(vm)));
     word i = word_from_string("0001 000 000 1 01111");
                              // ADD           imm5=0xf
     process_instruction(vm, i);
@@ -305,7 +318,7 @@ int run_tests() {
   }
 
   test("ADD with negative immediate value decrements dr"){
-    VM* vm = calloc(sizeof(vm), 0);
+    VM* vm = reset_vm(malloc(sizeof(vm)));
     word i = word_from_string("0001 000 000 1 11111");
                              //               (-1) in 2's comp
     process_instruction(vm, i);
@@ -315,7 +328,7 @@ int run_tests() {
   }
 
   test("ADD with other register ADDs register values"){
-    VM* vm = calloc(sizeof(vm), 0);
+    VM* vm = reset_vm(malloc(sizeof(vm)));
     word i = word_from_string("0001 000 001 0 00 010");
                             //  ADD  dr  sr f zz  tr
     vm->reg[1] = 1;
@@ -327,7 +340,7 @@ int run_tests() {
   }
 
   test("AND with immediate performs bitwise AND"){
-    VM* vm = calloc(sizeof(vm), 0);
+    VM* vm = reset_vm(malloc(sizeof(vm)));
     word i = word_from_string("0101 000 001 1 01111");
                             //  AND  dr  sr f  imm5
     vm->reg[1] = 0x9; // 1001
@@ -338,7 +351,7 @@ int run_tests() {
   }
 
   test("AND performs bitwise AND in register-addressed mode"){
-    VM* vm = calloc(sizeof(vm), 0);
+    VM* vm = reset_vm(malloc(sizeof(vm)));
     word i = word_from_string("0101 000 001 0 00 010");
                             //  AND  dr  sr f zz  tr
     vm->reg[1] = 1;
@@ -351,13 +364,75 @@ int run_tests() {
 
 
   test("NOT performs bitwise complement"){
-    VM* vm = calloc(sizeof(vm), 0);
+    VM* vm = reset_vm(malloc(sizeof(vm)));
     word i = word_from_string("1001 000 001 1 11111");
                             //  NOT  dr  sr 1 11111
     vm->reg[1] = 0xaaaa;
     process_instruction(vm, i);
 
     assert(vm->reg[0] == 0x5555);
+    free(vm);
+  }
+
+  test("BRn sets PC if last result was negative"){
+    VM* vm = reset_vm(malloc(sizeof(vm)));
+    word i = word_from_string("0000 100 0111 1111 1");
+                            //  BR  nzp ------0xFF
+    vm->reg[R_COND] = FL_NEG;
+    process_instruction(vm, i);
+
+    assert(vm->reg[R_PC] == 0xFF);
+    free(vm);
+  }
+
+  test("BRn doesnt PC if last result was NOT negative"){
+    VM* vm = reset_vm(malloc(sizeof(vm)));
+    word i = word_from_string("0000 100 0111 1111 1");
+                            //  BR  nzp ------0xFF
+    vm->reg[R_COND] = FL_POS;
+    process_instruction(vm, i);
+
+    assert(vm->reg[R_PC] != 0xFF);
+    free(vm);
+  }
+
+  test("BRz sets PC if result was zero"){
+    VM* vm = reset_vm(malloc(sizeof(vm)));
+    word i = word_from_string("0000 010 0111 1111 1");
+                            //  BR  nzp ------0xFF
+    vm->reg[R_COND] = FL_ZERO;
+    process_instruction(vm, i);
+    assert(vm->reg[R_PC] == 0xFF);
+    free(vm);
+  }
+
+  test("BRz doesn't set PC if result was NOT zero"){
+    VM* vm = reset_vm(malloc(sizeof(vm)));
+    word i = word_from_string("0000 010 0111 1111 1");
+                            //  BR  nzp ------0xFF
+    vm->reg[R_COND] = FL_POS;
+    process_instruction(vm, i);
+    assert(vm->reg[R_PC] != 0xFF);
+    free(vm);
+  }
+
+  test("BRp sets PC if result was positive"){
+    VM* vm = reset_vm(malloc(sizeof(vm)));
+    word i = word_from_string("0000 001 0111 1111 1");
+                            //  BR  nzp ------0xFF
+    vm->reg[R_COND] = FL_POS;
+    process_instruction(vm, i);
+    assert(vm->reg[R_PC] == 0xFF);
+    free(vm);
+  }
+
+  test("BRp doesnt set PC if result was NOT positive"){
+    VM* vm = reset_vm(malloc(sizeof(vm)));
+    word i = word_from_string("0000 001 0111 1111 1");
+                            //  BR  nzp ------0xFF
+    vm->reg[R_COND] = FL_ZERO;
+    process_instruction(vm, i);
+    assert(vm->reg[R_PC] != 0xFF);
     free(vm);
   }
 
